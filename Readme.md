@@ -314,7 +314,7 @@ AppleNVRAM: macOS NVRAM gpu-policy](https://github.com/erikberglund/AppleNVRAM/b
 - [dorania's Laptop SSDT-dGPU-Off.dsl](https://github.com/dortania/Getting-Started-With-ACPI/blob/master/extra-files/decompiled/SSDT-dGPU-Off.dsl)
 - [1Revenger1, “ECEnabler Issue #34,” GitHub](https://github.com/1Revenger1/ECEnabler/issues/34)  
 - [SSDT-BATT_Auto_Gen](https://github.com/the-eric-kwok/SSDT-BATT_Auto_Gen) [by @eric_kwok](https://github.com/the-eric-kwok) (Archived)
-- [SSDT-BATT_Auto_Gen](hhttps://github.com/Najip/SSDT-BATT_Auto_Gen) (My fork)
+- [SSDT-BATT_Auto_Gen](https://github.com/Najip/SSDT-BATT_Auto_Gen) (My fork)
 - [Reddit discussion: “How do I create SSDT-dGPU-Off.aml?” r/hackintosh](https://www.reddit.com/r/hackintosh/comments/1bdhoaj/how_do_i_create_ssdtdgpuoffaml/) 
 - [Tonymacx86, Rehabman: How to patch DSDT for working battery status](https://www.tonymacx86.com/threads/guide-how-to-patch-dsdt-for-working-battery-status.116102/) 
 - [UEFI/ACPI Specification](https://uefi.org/specifications)  
