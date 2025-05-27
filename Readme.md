@@ -1,11 +1,14 @@
 # Hackintosh Guide for Non‑Standard ACPI Battery Devices Stored in "SystemMemory" OperationRegions for Working Battery Status
 
 ## Overview
-This guide documents how to achieve correct battery readings on non‑standard battery ACPI region. For example, my **Lenovo Ideapad Gaming 3‑15ACH6** stores its battery data in `SystemMemory` rather than in `EmbeddedControl`. (See [DSDT.dsl #L4394](/Decompiled-Lenovo-Ideapad-Gaming-3-15ACH6-H3CN47WW-V3.05/DSDT.dsl#L4394#:~:text=OperationRegion%20(ECMM%2C%20SystemMemory%2C%200xFE0B0800%2C%200x1000)))
+This guide documents how to achieve correct battery readings on non‑standard battery ACPI region. For example, my **Lenovo Ideapad Gaming 3‑15ACH6** stores its battery data in `SystemMemory` rather than in `EmbeddedControl`. (See [DSDT.dsl #L4394-L4525](/Decompiled-Lenovo-Ideapad-Gaming-3-15ACH6-H3CN47WW-V3.05/DSDT.dsl#L4394-L4525))
+
+
 
 ### dGPU overlapping `SystemMemory` data
 If BIOS settings have devices enabled that operate inside any reserved memory, but has no working kext or driver under macOS (in our cases`RTX 3050`), macOS will fail to read stored Battery data in `SystemMemory`.  
-a dGPU with a properly operating kext or driver should work.
+A dGPU with a properly operating kext or driver should work.  
+(See memmap dump when Nvidia [disabled](/memmap-dump/rtx3050-off.txt) compared to when [enabled](/memmap-dump/rtx3050-on.txt#L13))
 
 ### Disabling dGPU from BIOS and its caveat
 The easiest and simplest way is just to **disable** dGPU in the BIOS options, so proper battery readings should be working again.   
@@ -15,13 +18,12 @@ We also need to re-disable it again before accessing macOS.  (See Highlighted Re
 ### Resetting NVRAM after changing dGPU BIOS/UEFI settings
 In my test, other than switching dGPU states (and Graphics related settings) inside UEF/BIOS, I always need to Reset `NVRAM` entry to be able to boot into macOS successfully. (using built-in `ResetNvramEntry.efi` from opencore should work).  
 Otherwise, booting process will **fail**.  
-This is because, 
-**AppleNVRAM** enumerates every GUID-scoped variable, including `gpu-policy`, `gpu-active` and `gpu-power-prefs`.  
+This is because, **AppleNVRAM** enumerates every GUID-scoped variable, including GPU related variable like `gpu-policy`, `gpu-active` and `gpu-power-prefs`.  
 (Confirmation [here](https://github.com/erikberglund/AppleNVRAM/blob/31c1bf951a198ed8beb06a47768cff3d437b0f76/Apple/7C436110-AB2A-4BBB-A880-FE41995C9F82.md?plain=1#L52) and [here](https://forums.macrumors.com/threads/force-2011-macbook-pro-8-2-with-failed-amd-gpu-to-always-use-intel-integrated-gpu-efi-variable-fix.2037591/page-35?utm_source=chatgpt.com#:~:text=Well%2C%20then%20I%20did)).
 
 ### SystemMemory Field Unit Objects Size ≥`16` 
-From my discovery, `SystemMemory`-based EC layouts are not limited by AppleACPIEC, but the `VirtualSMC`'s `SMCBatteryManager` keeps all EC payloads in `16`-bit (word) variables. Wider integers must be sliced in AML (or with an SSDT), or `VirtualSMC` will clip them.  
-(`SMCBatteryManager`'s code confirmation: [Link](https://github.com/acidanthera/VirtualSMC/blob/7a84cdd2e3172fcc9bf38c2a8b754358d539607a/Sensors/SMCBatteryManager/ACPIBattery.cpp#L110))
+From my discovery, `SystemMemory`-based EC layouts are not limited by AppleACPIEC (not even handled by it), but the `VirtualSMC`'s `SMCBatteryManager` keeps all EC payloads in `16`-bit (word) variables. Wider integers must be sliced in AML (or with an SSDT), or `VirtualSMC` will clip them.  
+(`SMCBatteryManager`'s code: [Link](https://github.com/acidanthera/VirtualSMC/blob/7a84cdd2e3172fcc9bf38c2a8b754358d539607a/Sensors/SMCBatteryManager/ACPIBattery.cpp#L108-L152)).  
 
 There are confirmed cases where some laptop configurations have `SystemMemory`'s Field Unit Object sizes ≥`16`. In such cases, proper ACPI-patching to split them is required.
 (See example [below](#14-approach-for-systemmemory-battery-data-with-size-16-bit))
@@ -88,9 +90,9 @@ When booting macOS using Opencore with the dGPU disabled in the BIOS and after r
 I don't even have **ECEnabler.kext** installed, nor do I split the Field Unit Objects. all field unit object sizes remain vanilla (`8`-`16` bits) and still return working and valid battery data.
 
 ### 1.4 Approach for `SystemMemory` Battery data with size ≥`16` bit
-For other devices with Field Size ≥`16` bit, patching to split it into ≤`16` bit is required to make battery kext to work.  
+For other devices with Field Size ≥`16` bit, patching to split it into ≤`16` bit is required to make battery kext to align with `SMCBatteryManager`'s `16`-bit limitation.  
 On some devices like `Clevo NL40CU`, battery field unit objects sizes are vary between `16`-`64` bits and battery readings were confirmed to work after patched by Reddit user `eric_kwok` using his own `Python3` script called `SSDT-BATT_Auto_Gen` (see link below).
-- Snippet of DSDT.dsl of `NL40CU`  for Battery related objects and their sizes (See [here](/Clevo-NL40CU-ACPI-Table/DSDT.dsl#L18824)):
+- Snippet of DSDT.dsl of `Clevo NL40CU`  for Battery related objects and their sizes (See [here](/Clevo-NL40CU-ACPI-Table/DSDT.dsl#L18824)):
 ```asl
                 BPU0,   32, 
                 BDC0,   32, 
@@ -272,23 +274,25 @@ For fixing **Sleep-Wake** issues, both still requires manual ACPI patching.
 
 
 ## 6. Lessons Learned
-6.1 Proper ACPI `_OFF` logic is the most reliable fix.
+6.1 `SystemMemory`-based EC battery regions require a different approach compared to traditional `EmbeddedControl`-based EC regions.
 
-6.2 Other Laptop examples where the `_OFF` method is not located directly under the dGPU but Under a `PowerResObj`:
+6.2 For disabling dGPU, proper ACPI patching `_OFF` logic is the most reliable fix.
+
+6.3 Other Laptop examples where the `_OFF` method is not located directly under the dGPU but Under a `PowerResObj`, are more common than expected:
 - [Lenovo Legion 5](https://gist.github.com/x1unix/bdd9228f58084248ca6ac22e3e45a6a8#acpi)
   
 - [HP Omen 15-en1xxx](https://olarila.com/topic/38984-bumblebee-disable-nvidia-gpu-method-doesnt-work-hp-omen-15-en1xxx/#:~:text=My%20dGPU%20_OFF%20method%20is%20%5C_SB.PCI0.GPP0.PG00._OFF%20()%20%20Tested%20on%20Ubuntu%20with%20acpi_call)
   
 - [Asus FX553VE](https://www.insanelymac.com/forum/topic/331139-resolved-help-asus-fx553ve-disable-nvidia-card/#comment-2559193)
 
-6.3 SystemMemory-based battery regions are also more common than expected. They also exist on some laptops. Some examples I have found include:
+6.4 `SystemMemory`-based battery regions are also more common than expected. They also exist on some laptops. Some examples I have found include:
 -  [Clevo NL40CU](https://www.tonymacx86.com/threads/opencore-battery-patch.295289/page-89#post-2187364#:~:text=I%20checked%20your%20dsdt%20and%20it%20seems%20that%20you%20don%E2%80%99t%20need%20a%20battery%20patch%20(No%20registers%20above%208%20bits%20in%20EmbeddedController)%2C%20but%20I%20found%20some%20in%20SystemMemory%20which%20may%20be%20the%20cause%20of%20your%20problem%20(%20I%20have%20not%20patched%20registers%20in%20SystemMemory%20before%20and%20I%20don't%20know%20if%20it's%20the%20right%20thing%20to%20do)%2C%20I%20may%20create%20a%20patch%20for%20you%20when%20I%20have%20some%20free%20time)
 - [Clevo N141CU](https://www.reddit.com/r/hackintosh/comments/k6xfb8/comment/gesqqq2/#:~:text=Actually%20not%20all%20firmware%20stores%20EC%20data%20in%20EmbeddedControll%2C%20some%20store%20them%20inside%20SystemMemory.)
 
 - [Apollo Entroware](https://www.reddit.com/r/hackintosh/comments/kpktpw/need_some_help_with_battery_patching/#:~:text=Battery%20patches%20should%20be%20done%20on%20EmbeddedController%20operation%20region%20(in%20your%20case%20no%20field%20units%20needs%20to%20be%20patched%20in%20EC)%20but%20when%20I%20checked%20battery%20methods%20I%20found%20some%20field%20units%20needs%20to%20be%20patched%20but%20they%20are%20in%20SystemMemory%20and%20NOT%20embedded%20controller)
 - [Dell N4050](https://www.insanelymac.com/forum/topic/297199-solucionado-indicador-de-bateria-no-funciona-dell-n4050/#comment-2012186#:~:text=SystemMemory)
 
-And there are probably many more out there. You can submit into this repo's issues if you found others along with it's Decompiled DSDT/SSDT.
+6.5 There are likely many more laptops with non-standard or emerging ACPI `SystemMemory`-based battery implementations. If you discover others, feel free to submit them as issues in this repository, along with their Decompiled DSDT/SSDT files.
 
 ---
 
@@ -300,10 +304,16 @@ By following this tailored ACPI patch sequence, you ensure accurate battery repo
 ## Sources
 - [Tonymacx86, Rehabman: Using Clover to "hotpatch" ACPI](https://www.tonymacx86.com/threads/guide-using-clover-to-hotpatch-acpi.200137/)
 - [Tonymacx86, Rehabman: “Guide: Disabling Discrete Graphics in Dual-GPU Laptops”](https://www.tonymacx86.com/threads/guide-disabling-discrete-graphics-in-dual-gpu-laptops.163772/)  
+- [erikberglund /
+AppleNVRAM: macOS NVRAM gpu-policy](https://github.com/erikberglund/AppleNVRAM/blob/31c1bf951a198ed8beb06a47768cff3d437b0f76/Apple/7C436110-AB2A-4BBB-A880-FE41995C9F82.md?plain=1#L52) 
+- [MacRumors: Force 2011 MacBook Pro 8,2 with failed AMD GPU to ALWAYS use Intel integrated GPU (EFI variable fix)](https://forums.macrumors.com/threads/force-2011-macbook-pro-8-2-with-failed-amd-gpu-to-always-use-intel-integrated-gpu-efi-variable-fix.2037591/page-35?utm_source=chatgpt.com#:~:text=Well%2C%20then%20I%20did)
+- [SMCBatteryManager
+/ACPIBattery.cpp: UINT16_MAX](https://github.com/acidanthera/VirtualSMC/blob/7a84cdd2e3172fcc9bf38c2a8b754358d539607a/Sensors/SMCBatteryManager/ACPIBattery.cpp#L110)  
 - [dorania's Desktop SSDT-GPU-DISABLE.dsl](https://dortania.github.io/Getting-Started-With-ACPI/Desktops/desktop-disable.html)
 - [dorania's Laptop SSDT-dGPU-Off.dsl](https://github.com/dortania/Getting-Started-With-ACPI/blob/master/extra-files/decompiled/SSDT-dGPU-Off.dsl)
 - [1Revenger1, “ECEnabler Issue #34,” GitHub](https://github.com/1Revenger1/ECEnabler/issues/34)  
-- [SSDT-BATT_Auto_Gen](https://github.com/the-eric-kwok/SSDT-BATT_Auto_Gen) [by @eric_kwok](https://github.com/the-eric-kwok)
+- [SSDT-BATT_Auto_Gen](https://github.com/the-eric-kwok/SSDT-BATT_Auto_Gen) [by @eric_kwok](https://github.com/the-eric-kwok) (Archived)
+- [SSDT-BATT_Auto_Gen](hhttps://github.com/Najip/SSDT-BATT_Auto_Gen) (My fork)
 - [Reddit discussion: “How do I create SSDT-dGPU-Off.aml?” r/hackintosh](https://www.reddit.com/r/hackintosh/comments/1bdhoaj/how_do_i_create_ssdtdgpuoffaml/) 
 - [Tonymacx86, Rehabman: How to patch DSDT for working battery status](https://www.tonymacx86.com/threads/guide-how-to-patch-dsdt-for-working-battery-status.116102/) 
 - [UEFI/ACPI Specification](https://uefi.org/specifications)  
