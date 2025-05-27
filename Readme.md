@@ -27,7 +27,7 @@ From my discovery, `SystemMemory`-based EC layouts are not limited by AppleACPIE
 (`SMCBatteryManager`'s `uint32_t` code: [Link](https://github.com/acidanthera/VirtualSMC/blob/7a84cdd2e3172fcc9bf38c2a8b754358d539607a/Sensors/SMCBatteryManager/BatteryManager.cpp#L317-L361)).  
 
 There are confirmed cases where some laptop configurations have `SystemMemory`'s Field Unit Object sizes ≥`32`. In such cases, proper ACPI-patching to split them is required.
-(See example [below](#14-approach-for-systemmemory-battery-data-with-size-16-bit))
+(See example [below](#14-approach-for-systemmemory-battery-data-with-size-32-bit))
 
 ### ACPI hot-patching
 This guide will **not** give you details or step by step for ACPI hot-patching and assumes you already understand how to do that. (See [[Guide] Using Clover to "hotpatch" ACPI](https://www.tonymacx86.com/threads/guide-using-clover-to-hotpatch-acpi.200137/) by Rehabman. Applicable and very similar approach for Opencore as well).
