@@ -8,7 +8,7 @@ This guide documents how to achieve correct battery readings on non‑standard b
 ### dGPU overlapping `SystemMemory` data
 If BIOS settings have devices enabled that operate inside any reserved memory, but has no working kext or driver under macOS (in our cases`RTX 3050`), macOS will fail to read stored Battery data in `SystemMemory`.  
 A dGPU with a properly operating kext or driver should work.  
-(See memmap dump when Nvidia [disabled](/memmap-dump/rtx3050-off.txt) compared to when [enabled](/memmap-dump/rtx3050-on.txt#L13))
+(See memmap dump when Nvidia [disabled](/memmap-dump/rtx3050-off.txt) compared to when [enabled](/memmap-dump/rtx3050-on.txt#L13-L15))
 
 ### Disabling dGPU from BIOS and its caveat
 The easiest and simplest way is just to **disable** dGPU in the BIOS options, so proper battery readings should be working again.   
