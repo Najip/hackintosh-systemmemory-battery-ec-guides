@@ -18,6 +18,9 @@ In my test, other than switching dGPU states inside BIOS, another hassle that I 
 My guess is, macOS probably needs fresh cached `Memory Map` for proper boot process.   
 Otherwise, booting process will **fail**. I'm still not sure though, so confirmation still required for my guessing.
 
+### SystemMemory Field Unit Objects Size ≥`16` 
+There are confirmed cases where some laptop configurations have Field Unit Object sizes ≥`16`. In such cases, proper ACPI-patching is required.
+
 ### ACPI hot-patching
 This guide will **not** give you details or step by step for ACPI hot-patching and assumes you already understand how to do that. (See [[Guide] Using Clover to "hotpatch" ACPI](https://www.tonymacx86.com/threads/guide-using-clover-to-hotpatch-acpi.200137/) by Rehabman. Applicable and very similar approach for Opencore as well).
 
@@ -50,7 +53,7 @@ For devices without a macOS driver (e.g. `RTX 3050`), `VirtualSMC.kext`, and its
 Other alternative Battery kexts and other kexts that need access to EC-based data (`ACPIBatteryManager.kext`, `VoodooBattery.kext`, `YogaSMC`, etc), will also fail.  
 
 ### 1.2 Using `ECEnabler.kext` attempt
-At first, I thought that the absence of battery readings is because of this non-standard Field Unit Object sizes, larger than 8 bits (data accessed by `_BST`, `_BIF`, and `_BIX`). Their object sizes vary between `8`-`16` bits.   
+At first, I thought that the absence of battery readings is because of this non-standard Field Unit Object sizes, larger than `8` bits (data accessed by `_BST`, `_BIF`, and `_BIX`). Their object sizes vary between `8`-`16` bits.   
 
 ```asl
                 Offset (0xC0), 
