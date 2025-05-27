@@ -264,9 +264,16 @@ For fixing **Sleep-Wake** issues, both still requires manual ACPI patching.
 
 
 ## 6. Lessons Learned
-6.1 Proper ACPI `_OFF` logic is the most reliable fix. 
+6.1 Proper ACPI `_OFF` logic is the most reliable fix.
 
-6.2 SystemMemory-based battery regions are also more common than expected. They also exist on some laptops. Some examples I have found include:
+6.2 Other Laptop examples where the `_OFF` method is not located directly under the dGPU but Under a `PowerResObj`:
+- [Lenovo Legion 5](https://gist.github.com/x1unix/bdd9228f58084248ca6ac22e3e45a6a8#acpi)
+  
+- [HP Omen 15-en1xxx](https://olarila.com/topic/38984-bumblebee-disable-nvidia-gpu-method-doesnt-work-hp-omen-15-en1xxx/#:~:text=My%20dGPU%20_OFF%20method%20is%20%5C_SB.PCI0.GPP0.PG00._OFF%20()%20%20Tested%20on%20Ubuntu%20with%20acpi_call)
+  
+- [Asus FX553VE](https://www.insanelymac.com/forum/topic/331139-resolved-help-asus-fx553ve-disable-nvidia-card/#comment-2559193)
+
+6.3 SystemMemory-based battery regions are also more common than expected. They also exist on some laptops. Some examples I have found include:
 -  [Clevo NL40CU](https://www.tonymacx86.com/threads/opencore-battery-patch.295289/page-89#post-2187364#:~:text=I%20checked%20your%20dsdt%20and%20it%20seems%20that%20you%20don%E2%80%99t%20need%20a%20battery%20patch%20(No%20registers%20above%208%20bits%20in%20EmbeddedController)%2C%20but%20I%20found%20some%20in%20SystemMemory%20which%20may%20be%20the%20cause%20of%20your%20problem%20(%20I%20have%20not%20patched%20registers%20in%20SystemMemory%20before%20and%20I%20don't%20know%20if%20it's%20the%20right%20thing%20to%20do)%2C%20I%20may%20create%20a%20patch%20for%20you%20when%20I%20have%20some%20free%20time)
 - [Clevo N141CU](https://www.reddit.com/r/hackintosh/comments/k6xfb8/comment/gesqqq2/#:~:text=Actually%20not%20all%20firmware%20stores%20EC%20data%20in%20EmbeddedControll%2C%20some%20store%20them%20inside%20SystemMemory.)
 
