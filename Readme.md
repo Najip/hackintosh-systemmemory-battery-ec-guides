@@ -21,11 +21,12 @@ Otherwise, booting process will **fail**.
 This is because, **AppleNVRAM** enumerates every GUID-scoped variable, including GPU related variable like `gpu-policy`, `gpu-active` and `gpu-power-prefs`.  
 (Confirmation [here](https://github.com/erikberglund/AppleNVRAM/blob/31c1bf951a198ed8beb06a47768cff3d437b0f76/Apple/7C436110-AB2A-4BBB-A880-FE41995C9F82.md?plain=1#L52) and [here](https://forums.macrumors.com/threads/force-2011-macbook-pro-8-2-with-failed-amd-gpu-to-always-use-intel-integrated-gpu-efi-variable-fix.2037591/page-35?utm_source=chatgpt.com#:~:text=Well%2C%20then%20I%20did)).
 
-### SystemMemory Field Unit Objects Size ≥`16` 
-From my discovery, `SystemMemory`-based EC layouts are not limited by AppleACPIEC (not even handled by it), but the `VirtualSMC`'s `SMCBatteryManager` keeps all EC payloads in `16`-bit (word) variables. Wider integers must be sliced in AML (or with an SSDT), or `VirtualSMC` will clip them.  
-(`SMCBatteryManager`'s code: [Link](https://github.com/acidanthera/VirtualSMC/blob/7a84cdd2e3172fcc9bf38c2a8b754358d539607a/Sensors/SMCBatteryManager/ACPIBattery.cpp#L108-L152)).  
+### SystemMemory Field Unit Objects Size ≥`32` 
+`SystemMemory` is handled different than `EmbeddedControl` I/O on macOS.
+From my discovery, `SystemMemory`-based EC layouts are not limited by AppleACPIEC (not even handled by it), but the `VirtualSMC`'s `SMCBatteryManager` keeps all EC payloads in `32`-bit (word) variables. Wider integers must be sliced in AML (or with an SSDT), or `VirtualSMC` will clip them.  
+(`SMCBatteryManager`'s `uint32_t` code: [Link](https://github.com/acidanthera/VirtualSMC/blob/7a84cdd2e3172fcc9bf38c2a8b754358d539607a/Sensors/SMCBatteryManager/BatteryManager.cpp#L317-L361)).  
 
-There are confirmed cases where some laptop configurations have `SystemMemory`'s Field Unit Object sizes ≥`16`. In such cases, proper ACPI-patching to split them is required.
+There are confirmed cases where some laptop configurations have `SystemMemory`'s Field Unit Object sizes ≥`32`. In such cases, proper ACPI-patching to split them is required.
 (See example [below](#14-approach-for-systemmemory-battery-data-with-size-16-bit))
 
 ### ACPI hot-patching
@@ -89,8 +90,8 @@ I have tried adding `ECEnabler.kext`, but the battery readings are still not ava
 When booting macOS using Opencore with the dGPU disabled in the BIOS and after resetting `NVRAM` using Opencore, `SMCBatteryManager.kext` begins working and the battery gauge appears in the menu bar.   
 I don't even have **ECEnabler.kext** installed, nor do I split the Field Unit Objects. all field unit object sizes remain vanilla (`8`-`16` bits) and still return working and valid battery data.
 
-### 1.4 Approach for `SystemMemory` Battery data with size ≥`16` bit
-For other devices with Field Size ≥`16` bit, patching to split it into ≤`16` bit is required to make battery kext to align with `SMCBatteryManager`'s `16`-bit limitation.  
+### 1.4 Approach for `SystemMemory` Battery data with size ≥`32` bit
+For other devices with Field Size ≥`32` bit, patching to split it into ≤`32` bit is required to make battery kext to align with `SMCBatteryManager`'s `32`-bit limitation.  
 On some devices like `Clevo NL40CU`, battery field unit objects sizes are vary between `16`-`64` bits and battery readings were confirmed to work after patched by Reddit user `eric_kwok` using his own `Python3` script called `SSDT-BATT_Auto_Gen` (see link below).
 - Snippet of DSDT.dsl of `Clevo NL40CU`  for Battery related objects and their sizes (See [here](/Clevo-NL40CU-ACPI-Table/DSDT.dsl#L18824)):
 ```asl
@@ -308,7 +309,7 @@ By following this tailored ACPI patch sequence, you ensure accurate battery repo
 AppleNVRAM: macOS NVRAM gpu-policy](https://github.com/erikberglund/AppleNVRAM/blob/31c1bf951a198ed8beb06a47768cff3d437b0f76/Apple/7C436110-AB2A-4BBB-A880-FE41995C9F82.md?plain=1#L52) 
 - [MacRumors: Force 2011 MacBook Pro 8,2 with failed AMD GPU to ALWAYS use Intel integrated GPU (EFI variable fix)](https://forums.macrumors.com/threads/force-2011-macbook-pro-8-2-with-failed-amd-gpu-to-always-use-intel-integrated-gpu-efi-variable-fix.2037591/page-35?utm_source=chatgpt.com#:~:text=Well%2C%20then%20I%20did)
 - [SMCBatteryManager
-/ACPIBattery.cpp: UINT16_MAX](https://github.com/acidanthera/VirtualSMC/blob/7a84cdd2e3172fcc9bf38c2a8b754358d539607a/Sensors/SMCBatteryManager/ACPIBattery.cpp#L110)  
+/ BatteryManager.cpp: uint32_t](https://github.com/acidanthera/VirtualSMC/blob/7a84cdd2e3172fcc9bf38c2a8b754358d539607a/Sensors/SMCBatteryManager/BatteryManager.cpp#L317-L361)  
 - [dorania's Desktop SSDT-GPU-DISABLE.dsl](https://dortania.github.io/Getting-Started-With-ACPI/Desktops/desktop-disable.html)
 - [dorania's Laptop SSDT-dGPU-Off.dsl](https://github.com/dortania/Getting-Started-With-ACPI/blob/master/extra-files/decompiled/SSDT-dGPU-Off.dsl)
 - [1Revenger1, “ECEnabler Issue #34,” GitHub](https://github.com/1Revenger1/ECEnabler/issues/34)  
