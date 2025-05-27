@@ -20,6 +20,7 @@ Otherwise, booting process will **fail**. I'm still not sure though, so confirma
 
 ### SystemMemory Field Unit Objects Size ≥`16` 
 There are confirmed cases where some laptop configurations have Field Unit Object sizes ≥`16`. In such cases, proper ACPI-patching is required.
+(See example [below](#14-approach-for-systemmemory-battery-data-with-size-16-bit))
 
 ### ACPI hot-patching
 This guide will **not** give you details or step by step for ACPI hot-patching and assumes you already understand how to do that. (See [[Guide] Using Clover to "hotpatch" ACPI](https://www.tonymacx86.com/threads/guide-using-clover-to-hotpatch-acpi.200137/) by Rehabman. Applicable and very similar approach for Opencore as well).
@@ -115,7 +116,7 @@ On some devices like `Clevo NL40CU`, battery field unit objects sizes are vary b
 If you prefer manual Rehabman's methods, see guide [here](https://www.tonymacx86.com/threads/guide-how-to-patch-dsdt-for-working-battery-status.116102/).
 - In my test, using [@eric_kwok](https://github.com/the-eric-kwok)'s script or splitting already `16` bits of data using `Rehabman`'s Utility methods, causing Boot hang when using `YogaSMC.kext`. So vanilla objects sized `8`-`16` bits works fine.
 
-### 1.4 About `SSDT-BATT_Auto_Gen` by [@eric_kwok](https://github.com/the-eric-kwok)
+### 1.5 About `SSDT-BATT_Auto_Gen` by [@eric_kwok](https://github.com/the-eric-kwok)
 [SSDT-BATT_Auto_Gen](https://github.com/the-eric-kwok/SSDT-BATT_Auto_Gen) by [@eric_kwok](https://github.com/the-eric-kwok) is a very useful `Python3` script that generates a proper `SSDT-BATT.dsl` by splitting large EC objects into `8`‑bit segments.   
 It does work for both `SystemMemory` and `EmbeddedControl` based EC. The most neat feature it has that other script don't have, is the ability to also generate `SSDT-BATT.dsl` that also support combining dual‑battery laptops into single battery device, without the need to create separate `SSDT-BATC.dsl` commonly used for fixing dual battery support in macOS.   
 With the rise of `ECEnabler.kext`, the script is abandoned even though it still useful for `SystemMemory` based EC data.  
@@ -126,19 +127,19 @@ I'm forking the repo in case any programmer out there is interested to improve i
 - My fork of `SSDT-BATT_Auto_Gen` so anyone can improve it further. See it [here](https://github.com/Najip/SSDT-BATT_Auto_Gen)
 - There is also a similar script which was created by [@1Revenger1](https://github.com/1Revenger1), The author of `ECEnabler` called [BatteryPatcher](https://github.com/1Revenger1/BatteryPatcher) that currently archived and possibly abandoned as well. But I'm never test it.
 
-### 1.5 About `ECEnabler.kext`
+### 1.6 About `ECEnabler.kext`
 [`ECEnabler`](https://github.com/1Revenger1/ECEnabler) by [@1Revenger1](https://github.com/1Revenger1) is a very useful kext whose functionality is to extend macOS to read `EmbeddedControl`'s `OperationRegion` Field Unit Objects ≥`8` bits (1 bytes) of sizes, and **not** to magically fixes Battery Readings for non-standard ACPI Battery Devices.   
 It's functionality is also **not** to interact with `SystemMemory`'s OperationRegion and their Objects at all.   
 (see my submitted, but closed as not planned issues at here: [ECEnabler issue #34](https://github.com/1Revenger1/ECEnabler/issues/34)).   
 
-#### 1.5.1 Submitting issues
+#### 1.6.1 Submitting issues
 If your Battery data stored in `SystemMemory`, submitting issues to ECEnabler's github repo is irrelevant and probably **offensive** 
 (like what I was did. Sorry [@1Revenger1](https://github.com/1Revenger1). 😔).   
 
-#### 1.5.2 Check OperationRegion type
+#### 1.6.2 Check OperationRegion type
 Before submitting any issues, ensure you have verified in your decompiled ACPI dump (commonly in `DSDT.dsl`) whether your firmware uses the `EmbeddedContro`l or `SystemMemory` OperationRegion. The latter is irrelevant to `ECEnabler.kext`.
 
-### 1.6 Existence of `EmbeddedControl` OperationRegion
+### 1.7 Existence of `EmbeddedControl` OperationRegion
 This laptop's firmware also has four `EmbeddedControl` OperationRegion.   
 Those EC's Regions on this laptop also do not contain field unit objects of sizes ≥ `8` bits—in most cases, they range between `4` and `8` bits. So `ECEnabler` or splitting Field Unit Objects is not required in our cases.   
 On other laptops with bigger `EmbeddedControl` object sizes ≥`8`-bits, `ECEnabler` may still required.   
