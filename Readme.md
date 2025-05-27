@@ -12,14 +12,18 @@ The easiest and simplest way is just to **disable** dGPU in the BIOS options, so
 But, it is not recommended since we need to re-enable dGPU every time if we want to access it under other Operating Systems.   
 We also need to re-disable it again before accessing macOS.  (See Highlighted Rehabman's statement at second paragraph [here](https://www.tonymacx86.com/threads/guide-disabling-discrete-graphics-in-dual-gpu-laptops.163772/#:~:text=Although%20the%20device%20can%20usually%20be%20disabled%20in%20BIOS%2C%20it%20is%20better%20to%20disable%20it%20with%20a%20custom%20ACPI%20setup%20so%20the%20device%20can%20still%20be%20used%20when%20booting%20Windows.)).   
 
-### Resetting NVRAM after changing dGPU BIOS settings
-In my test, other than switching dGPU states inside BIOS, another hassle that I was facing by manually switching dGPU BIOS setting is, I always need to Reset `NVRAM` entry to be able to boot into macOS successfully. (using built-in `ResetNvramEntry.efi` from opencore should work).   
-
-My guess is, macOS probably needs fresh cached `Memory Map` for proper boot process.   
-Otherwise, booting process will **fail**. I'm still not sure though, so confirmation still required for my guessing.
+### Resetting NVRAM after changing dGPU BIOS/UEFI settings
+In my test, other than switching dGPU states (and Graphics related settings) inside UEF/BIOS, I always need to Reset `NVRAM` entry to be able to boot into macOS successfully. (using built-in `ResetNvramEntry.efi` from opencore should work).  
+Otherwise, booting process will **fail**.  
+This is because, 
+**AppleNVRAM** enumerates every GUID-scoped variable, including `gpu-policy`, `gpu-active` and `gpu-power-prefs`.  
+(Confirmation [here](https://github.com/erikberglund/AppleNVRAM/blob/31c1bf951a198ed8beb06a47768cff3d437b0f76/Apple/7C436110-AB2A-4BBB-A880-FE41995C9F82.md?plain=1#L52) and [here](https://forums.macrumors.com/threads/force-2011-macbook-pro-8-2-with-failed-amd-gpu-to-always-use-intel-integrated-gpu-efi-variable-fix.2037591/page-35?utm_source=chatgpt.com#:~:text=Well%2C%20then%20I%20did)).
 
 ### SystemMemory Field Unit Objects Size ≥`16` 
-There are confirmed cases where some laptop configurations have Field Unit Object sizes ≥`16`. In such cases, proper ACPI-patching is required.
+From my discovery, `SystemMemory`-based EC layouts are not limited by AppleACPIEC, but the `VirtualSMC`'s `SMCBatteryManager` keeps all EC payloads in `16`-bit (word) variables. Wider integers must be sliced in AML (or with an SSDT), or `VirtualSMC` will clip them.  
+(`SMCBatteryManager`'s code confirmation: [Link](https://github.com/acidanthera/VirtualSMC/blob/7a84cdd2e3172fcc9bf38c2a8b754358d539607a/Sensors/SMCBatteryManager/ACPIBattery.cpp#L110))
+
+There are confirmed cases where some laptop configurations have `SystemMemory`'s Field Unit Object sizes ≥`16`. In such cases, proper ACPI-patching to split them is required.
 (See example [below](#14-approach-for-systemmemory-battery-data-with-size-16-bit))
 
 ### ACPI hot-patching
@@ -84,7 +88,7 @@ When booting macOS using Opencore with the dGPU disabled in the BIOS and after r
 I don't even have **ECEnabler.kext** installed, nor do I split the Field Unit Objects. all field unit object sizes remain vanilla (`8`-`16` bits) and still return working and valid battery data.
 
 ### 1.4 Approach for `SystemMemory` Battery data with size ≥`16` bit
-For other devices with Field Size ≥`16` bit, patching to split it into ≤`16` bit is required.
+For other devices with Field Size ≥`16` bit, patching to split it into ≤`16` bit is required to make battery kext to work.  
 On some devices like `Clevo NL40CU`, battery field unit objects sizes are vary between `16`-`64` bits and battery readings were confirmed to work after patched by Reddit user `eric_kwok` using his own `Python3` script called `SSDT-BATT_Auto_Gen` (see link below).
 - Snippet of DSDT.dsl of `NL40CU`  for Battery related objects and their sizes (See [here](/Clevo-NL40CU-ACPI-Table/DSDT.dsl#L18824)):
 ```asl
@@ -112,19 +116,19 @@ On some devices like `Clevo NL40CU`, battery field unit objects sizes are vary b
 - [SSDT-BATT_Auto_Gen](https://github.com/the-eric-kwok/SSDT-BATT_Auto_Gen) Script by [@eric_kwok](https://github.com/the-eric-kwok) for automated `SSDT-BATT.dsl` generation from `DSDT.dsl` which unfortunately abandoned with the rise of `ECEnabler.kext` 😔.
 - Working confirmation using  `SSDT-BATT.dsl` generated with [@eric_kwok](https://github.com/the-eric-kwok)'s `SSDT-BATT_Auto_Gen` script by reddit user `Guddler` **Clevo NL40CU** [here](https://www.reddit.com/r/hackintosh/comments/k6xfb8/comment/gepcglb/#:~:text=Update%3A%20Battery%20appears%20to%20be%20working%20just%20fine%20aside%20from%20that%20plug%20%2F%20unplug%20quirk%20which%20I%20can%20live%20with.).
 ![](/images/reddit-user-guddler-of-confirmed-working-battery-status.png)
-- Above script are using similar Utility methods used by Rehabman's Utility methods like `B1B2`,`B1B4`,`WECB`, and `RECB` (but with unique generated names).   
-If you prefer manual Rehabman's methods, see guide [here](https://www.tonymacx86.com/threads/guide-how-to-patch-dsdt-for-working-battery-status.116102/).
-- In my test, using [@eric_kwok](https://github.com/the-eric-kwok)'s script or splitting already `16` bits of data using `Rehabman`'s Utility methods, causing Boot hang when using `YogaSMC.kext`. So vanilla objects sized `8`-`16` bits works fine.
+- Above script are using method objects similar to those used by Rehabman's like `B1B2`,`B1B4`,`WECB`, and `RECB` (but with unique generated names).   
+If you prefer manual patching, see Rehabman's guide [here](https://www.tonymacx86.com/threads/guide-how-to-patch-dsdt-for-working-battery-status.116102/).
+- In my test, using [@eric_kwok](https://github.com/the-eric-kwok)'s script or splitting already `16` bits of data, or using `Rehabman`'s Utility methods, causing Boot hang if `YogaSMC.kext` is instealld. So vanilla objects sized `8`-`16` bits works fine.
 
 ### 1.5 About `SSDT-BATT_Auto_Gen` by [@eric_kwok](https://github.com/the-eric-kwok)
 [SSDT-BATT_Auto_Gen](https://github.com/the-eric-kwok/SSDT-BATT_Auto_Gen) by [@eric_kwok](https://github.com/the-eric-kwok) is a very useful `Python3` script that generates a proper `SSDT-BATT.dsl` by splitting large EC objects into `8`‑bit segments.   
 It does work for both `SystemMemory` and `EmbeddedControl` based EC. The most neat feature it has that other script don't have, is the ability to also generate `SSDT-BATT.dsl` that also support combining dual‑battery laptops into single battery device, without the need to create separate `SSDT-BATC.dsl` commonly used for fixing dual battery support in macOS.   
-With the rise of `ECEnabler.kext`, the script is abandoned even though it still useful for `SystemMemory` based EC data.  
+However, with the rise of `ECEnabler.kext`, the script is abandoned even though it still useful for `SystemMemory` based EC data.  
 I'm forking the repo in case any programmer out there is interested to improve it.
 
 - Eric's explainations about dual battery combination feature [here](https://github.com/the-eric-kwok/SSDT-BATT_Auto_Gen/issues/1#issuecomment-843071201)
 - `SSDT-BATT_Auto_Gen`'s `dev_rewrite_search_method` branch variant with additional ability to combine dual batteries [here](https://github.com/the-eric-kwok/SSDT-BATT_Auto_Gen/tree/dev_rewrite_search_method).
-- My fork of `SSDT-BATT_Auto_Gen` so anyone can improve it further. See it [here](https://github.com/Najip/SSDT-BATT_Auto_Gen)
+- My fork of `SSDT-BATT_Auto_Gen` so anyone can improve it further. See it [here](https://github.com/Najip/SSDT-BATT_Auto_Gen).
 - There is also a similar script which was created by [@1Revenger1](https://github.com/1Revenger1), The author of `ECEnabler` called [BatteryPatcher](https://github.com/1Revenger1/BatteryPatcher) that currently archived and possibly abandoned as well. But I'm never test it.
 
 ### 1.6 About `ECEnabler.kext`
@@ -137,7 +141,7 @@ If your Battery data stored in `SystemMemory`, submitting issues to ECEnabler's 
 (like what I was did. Sorry [@1Revenger1](https://github.com/1Revenger1). 😔).   
 
 #### 1.6.2 Check OperationRegion type
-Before submitting any issues, ensure you have verified in your decompiled ACPI dump (commonly in `DSDT.dsl`) whether your firmware uses the `EmbeddedContro`l or `SystemMemory` OperationRegion. The latter is irrelevant to `ECEnabler.kext`.
+Before submitting any issues, ensure you have verified in your decompiled ACPI dump (commonly in `DSDT.dsl`) whether your firmware uses the `EmbeddedControl` or `SystemMemory` OperationRegion. The latter is irrelevant to `ECEnabler.kext`.
 
 ### 1.7 Existence of `EmbeddedControl` OperationRegion
 This laptop's firmware also has four `EmbeddedControl` OperationRegion.   
